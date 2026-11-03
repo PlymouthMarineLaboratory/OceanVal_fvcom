@@ -1,0 +1,3 @@
+[console_scripts]
+OceanVal = oceanval.app:main
+oceanval = oceanval.app:main

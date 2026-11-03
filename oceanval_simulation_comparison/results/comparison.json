@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "oceanval": "0.6.1",
+  "created": "2026-11-03T12:50:19",
+  "simulations": [
+    {
+      "name": "fv",
+      "key": "fv",
+      "sim_dir": "/data/thaumus2/scratch/maz/Models/FVCOM/run/aqua_v16_trawl/output/aqua_v16_trawl/tide_wind_nest_ersem/2012_2014_val",
+      "n_dirs_down": 0,
+      "exclude": [],
+      "require": [],
+      "time_shift": null,
+      "thickness": "z_level",
+      "as_missing": [
+        0.0,
+        0.0
+      ],
+      "times_index": "/tmp/oceanval_times_s5taa59u/1.pkl"
+    },
+    {
+      "name": "nm",
+      "key": "nm",
+      "sim_dir": "/data/thaumus2/scratch/hpo/COMFORT/baseline_archerfull/2013",
+      "n_dirs_down": 1,
+      "exclude": [],
+      "require": [],
+      "time_shift": null,
+      "thickness": null,
+      "as_missing": [
+        0.0,
+        0.0
+      ],
+      "times_index": "/tmp/oceanval_times_s5taa59u/2.pkl"
+    }
+  ],
+  "colours": {
+    "fv": "#0072B2",
+    "nm": "#E69F00"
+  },
+  "unify": {
+    "method": "baseline",
+    "baseline": "nm",
+    "crop": [
+      [
+        -10.742681503295898,
+        -1.6658425331115723
+      ],
+      [
+        46.800350189208984,
+        57.832427978515625
+      ]
+    ]
+  },
+  "unit_conversions": {
+    "Temperature": {
+      "nm": {
+        "multiplier": 1.0,
+        "adder": 0.0
+      }
+    }
+  },
+  "unify_text": "The simulations were put on the grid of nm: each of the others was regridded to it (bilinear interpolation, nctoolkit's regrid). Where any simulation has no value in a cell (judged from its second time step), that cell is missing in all of them, so every simulation is compared over exactly the same cells. The output of fv is on a mesh of triangles, so it was regridded (nearest neighbour) onto the grid of nm, cropped to the extent of the mesh, where only the cells inside the mesh have values. Variables below the surface were interpolated from the model's sigma layers to the depths of the levels of nm, with the top layer's value above the top layer, the bottom layer's between it and the seabed and nothing below the seabed, so the bottom is the deepest of those levels that is above the seabed.",
+  "domain_mask": null,
+  "domain_mask_text": null,
+  "same_grid": true,
+  "shared_cells": {
+    "temperature": {
+      "surface": [
+        4490,
+        13530
+      ]
+    }
+  },
+  "subregions": null,
+  "lon_lim": null,
+  "lat_lim": null,
+  "stations": {},
+  "figure_code": false,
+  "fvcom": false,
+  "fvcom_regridded": [
+    "fv"
+  ],
+  "variables": [
+    {
+      "name": "Temperature",
+      "key": "temperature",
+      "long_name": "temperature",
+      "units": "degrees_C",
+      "kinds": [
+        "climatology"
+      ],
+      "model_variables": {
+        "fv": "temp",
+        "nm": "votemper"
+      },
+      "conversions": {
+        "nm": {
+          "from": "degC",
+          "multiplier": 1.0,
+          "adder": 0.0,
+          "text": "from degC into degrees_C (the same units, written otherwise)"
+        }
+      },
+      "sims": {
+        "fv": {
+          "name": "Temperature",
+          "key": "temperature",
+          "model_variable": "temp",
+          "long_name": "temperature",
+          "units": "degrees_C",
+          "levels": 1,
+          "pattern": "aqua_v**_trawl_avg_**_**_**.nc",
+          "files": 13,
+          "time_res": "1d",
+          "time_res_text": "daily",
+          "climatology": {
+            "start": 2013,
+            "end": 2013,
+            "files": 13,
+            "dates": {
+              "summary": "All 12 months from 2013 to 2013 are complete",
+              "issues": [],
+              "gaps": false,
+              "first": "2013-01-01",
+              "last": "2013-12-31"
+            },
+            "layers": {
+              "surface": {
+                "title": "Surface",
+                "units": "degrees_C",
+                "monthly": "temperature_surface_monthly.nc",
+                "annual": "temperature_surface_annual.nc",
+                "months": 12
+              }
+            }
+          },
+          "phenology": null,
+          "long_term": null,
+          "seasonal": null,
+          "transects": null,
+          "map_changes": null,
+          "first": "2012-12-02",
+          "last": "2014-01-01"
+        },
+        "nm": {
+          "name": "Temperature",
+          "key": "temperature",
+          "model_variable": "votemper",
+          "long_name": "temperature",
+          "units": "degrees_C",
+          "levels": 51,
+          "pattern": "amm7_1d_**_**_grid_T.nc",
+          "files": 12,
+          "time_res": "1d",
+          "time_res_text": "daily",
+          "climatology": {
+            "start": 2013,
+            "end": 2013,
+            "files": 12,
+            "dates": {
+              "summary": "All 12 months from 2013 to 2013 are complete",
+              "issues": [],
+              "gaps": false,
+              "first": "2013-01-01",
+              "last": "2013-12-31"
+            },
+            "layers": {
+              "surface": {
+                "title": "Surface",
+                "units": "degrees_C",
+                "monthly": "temperature_surface_monthly.nc",
+                "annual": "temperature_surface_annual.nc",
+                "months": 12
+              }
+            }
+          },
+          "phenology": null,
+          "long_term": null,
+          "seasonal": null,
+          "transects": null,
+          "map_changes": null,
+          "first": "2013-01-01",
+          "last": "2013-12-31"
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,1893 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<title>Gridded data selection · OceanVal</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%230f8f96'/%3E%3Cstop offset='1' stop-color='%23075c68'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Cpath d='M10 40c6-8 12-8 18 0s12 8 18 0s8-8 8-8' fill='none' stroke='%23fff' stroke-width='4.5' stroke-linecap='round' opacity='.55'/%3E%3Cpath d='M8 30c6-9 13-9 19 0s13 9 19 0s10-9 10-9' fill='none' stroke='%23fff' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+  /*__OCEANVAL_GUI_CSS__*/
+
+  table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; }
+  col.c-obs { width: 156px; }
+  col.c-model { width: 26.5%; }
+  col.c-point { width: 220px; }
+  col.c-chosen { width: 22%; }
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    padding: 13px 16px;
+    background: var(--surface-soft);
+    border-bottom: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.09em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+  thead th:first-child { border-top-left-radius: var(--radius-md); }
+  thead th:last-child { border-top-right-radius: var(--radius-md); }
+  tbody td { padding: 14px 16px; border-bottom: 1px solid var(--line-strong); vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr { transition: background-color 0.15s; }
+  tbody tr:hover { background: var(--row-hover); }
+  tbody tr.is-empty { background: var(--empty-row); }
+  /* a row with a dataset ticked on this page: tinted, with a teal edge, so it is plain at a glance */
+  tbody tr.is-selected { background: var(--teal-50); }
+  tbody tr.is-selected:hover { background: var(--teal-100); }
+  tbody tr.is-selected td:first-child { box-shadow: inset 4px 0 0 var(--teal-500); }
+  tbody tr.is-selected .chip.is-on, tbody tr.is-selected .chip.is-own { background: var(--bg); }
+
+  .obs__title { display: block; padding-top: 8px; font-weight: 600; line-height: 1.25; }
+  .obs__key { display: block; margin-top: 3px; color: var(--muted-light); font-size: 12px; }
+
+  /* model variable */
+  /* sized by line-height and padding rather than a fixed height: with a fixed
+     height, Chromium clips DejaVu Sans Mono's underscores inside inputs */
+  .field__input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--ink);
+    font: 500 13.5px/20px var(--font-mono);
+    transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+  }
+  .field__input::placeholder { color: var(--coral-dark); opacity: 0.75; font: italic 400 13.5px/20px var(--font-body); }
+  .field__input:hover { border-color: var(--line-strong); }
+  .field__input:focus { outline: none; border-color: var(--teal-500); box-shadow: var(--focus); }
+  .is-empty .field__input { border-style: dashed; border-color: var(--empty-line); background: var(--empty-bg); }
+  .is-invalid .field__input { border-color: var(--red); box-shadow: 0 0 0 3px rgba(192, 57, 43, 0.12); }
+  .field__input:disabled { background: var(--bg-alt); color: var(--muted); }
+  .field__msg { display: flex; gap: 6px; align-items: flex-start; margin: 6px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.4; }
+  .field__msg:empty { display: none; }
+  .is-empty .field__msg { color: var(--coral-dark); }
+  .is-invalid .field__msg { color: var(--ink); }
+
+  /* datasets */
+  .chips { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 10px 0 9px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--ink-soft);
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s, border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
+  }
+  .chip:hover { border-color: var(--teal-200); background: var(--chip-hover); }
+  .chip.is-on { border-color: var(--teal-400); background: var(--teal-50); color: var(--teal-900); }
+  .chip.is-disabled { cursor: not-allowed; opacity: 0.42; background: var(--bg); border-color: var(--line); }
+  .chip__name { font-size: 13.5px; font-weight: 600; letter-spacing: 0.01em; }
+  .chip__region {
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--line-soft);
+    color: var(--muted);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  .explainer { margin: 0 0 18px; padding: 14px 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); font-size: 13.5px; }
+  .explainer__title { margin: 0 0 8px; color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase; }
+  .explainer dl { display: grid; grid-template-columns: max-content 1fr max-content 1fr; gap: 8px 14px; margin: 0; align-items: baseline; }
+  @media (max-width: 640px) { .explainer dl { grid-template-columns: max-content 1fr; } }
+  .explainer dt { margin: 0; }
+  .explainer dd { margin: 0; color: var(--ink-soft); overflow-wrap: anywhere; }
+  /* a hover note with no browser delay */
+  .chip__region.has-tip { position: relative; cursor: help; }
+  .chip__region.has-tip::after {
+    content: attr(data-tip);
+    position: absolute; left: 0; top: calc(100% + 6px); z-index: 20;
+    padding: 5px 9px; border-radius: 6px; background: var(--ink); color: var(--bg);
+    font-size: 12px; font-weight: 500; letter-spacing: 0; white-space: nowrap;
+    opacity: 0; pointer-events: none;
+  }
+  .chip__region.has-tip:hover::after, .chip__region.has-tip:focus::after { opacity: 1; }
+  .chip__region.is-domain { background: var(--accent-soft); color: var(--teal-700); }
+  /* the recipes the user registered */
+  .chip__region.is-yours { background: rgba(215, 107, 69, 0.14); color: var(--coral-dark); }
+  /* the user's own data in the matchup, matched up whatever is ticked */
+  .chip.is-own, .chip.is-own:hover { cursor: default; border-color: var(--teal-400); background: var(--teal-50); color: var(--teal-900); }
+  .own__model { display: block; padding-top: 8px; color: var(--ink); font: 500 13.5px/20px var(--font-mono); overflow-wrap: anywhere; }
+  .none { display: inline-block; padding-top: 8px; color: var(--muted-light); }
+
+  /* ---- each page's settings, above its table ---- */
+  .settings__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 14px;
+    margin: 0;
+    padding: 16px 22px;
+    border-bottom: 1px solid var(--line);
+  }
+  .settings__title { font: 600 18px/1.3 var(--font-head); letter-spacing: -0.2px; }
+  .settings__grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0 30px;
+    padding: 20px 22px 24px;
+  }
+  .settings--more { margin-top: 30px; }
+  .settings__note { margin: 0; padding: 0 22px 20px; color: var(--muted); font-size: 13px; }
+  .page > .settings { margin-bottom: 32px; }
+  /* the climatology years' question stays on one line, so its column is as wide as that needs */
+  #group-climate legend { white-space: nowrap; color: var(--ink); font-weight: 800; }
+  #group-climate .group__intro { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+  @media (min-width: 1100px) {
+    #settings-gridded { grid-template-columns: max-content minmax(0, 1fr) minmax(0, 1fr); }
+  }
+  /* the point settings are stacked: the years question, then how observations are matched */
+  #settings-point { grid-template-columns: minmax(0, 1fr); row-gap: 26px; }
+  /* narrower, the columns are shared out evenly, so the questions wrap rather than run into the next column */
+  @media (max-width: 1099px) {
+    #group-climate legend { white-space: normal; }
+  }
+  .settings--more .settings__grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .settings__column:empty { display: none; }
+  .settings__column { display: grid; align-content: start; gap: 26px; min-width: 0; }
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+  .th-with-button { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .btn--th { flex: none; height: 32px; padding: 0 14px; font-size: 13px; text-transform: none; letter-spacing: 0; white-space: nowrap; }
+  .settings__ticks { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px 24px; padding: 0 22px 20px; }
+  .g-label.is-required { font-weight: 500; }
+  .year-required { margin-left: 6px; color: var(--red); font-size: 10.5px; font-weight: 700; text-transform: uppercase; }
+  /* a box's own hint, between it and the next box */
+  .group__msg + .g-row { margin-top: 10px; }
+  .group__line.is-ersem { color: var(--ersem); font-weight: 600; }
+  .s-input.is-ersem, .s-select.is-ersem { border-color: var(--ersem-line); background-color: var(--ersem-bg); color: var(--ersem); font-weight: 600; }
+  /* what the oceanval app's demo filled in is red and bold, until it is typed over */
+  .s-input.is-oceanval, .s-select.is-oceanval, .lede .oceanval-change, .field__msg .oceanval-change { color: var(--ink); font-weight: 700; }
+  .cores-row { display: grid; grid-template-columns: minmax(0, 1fr) 84px; align-items: center; gap: 10px; }
+  .cores-row .g-label { margin: 0; }
+  .cores-row.is-stacked { grid-template-columns: minmax(0, 1fr); gap: 6px; }
+
+  /* a dataset's own options, under its tick-box: as wide as the point
+     column, so the gridded ones line up with the point ones */
+  .dataset { display: grid; gap: 8px; justify-items: start; }
+  .opts { display: grid; gap: 6px; width: 188px; max-width: 100%; }
+  .opts__row { display: grid; grid-template-columns: 50px minmax(0, 1fr); align-items: center; gap: 6px; }
+  .opts__label { color: var(--muted); font-size: 11.5px; font-weight: 500; }
+  .opts__row.is-required { grid-template-columns: 64px minmax(0, 1fr); }
+  .opts__row.is-required .opts__label { font-weight: 500; }
+  .opts__row.is-required .opts__label::after { content: "Required"; display: block; color: var(--red); font-size: 9px; font-weight: 700; text-transform: uppercase; }
+  .opts__help { position: relative; display: inline-flex; margin-left: 3px; vertical-align: middle; }
+  .opts__help > summary { display: grid; place-items: center; width: 16px; height: 16px; border: 1px solid var(--teal-600); border-radius: 50%; color: var(--teal-700); font-size: 11px; font-weight: 700; line-height: 1; list-style: none; cursor: pointer; }
+  .opts__help > summary::-webkit-details-marker { display: none; }
+  .opts__help > summary:focus-visible { outline: none; box-shadow: var(--focus); }
+  .opts__help-popover { position: absolute; top: calc(100% + 7px); left: 0; z-index: 8; width: min(250px, 70vw); padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); box-shadow: var(--shadow-lg); font-size: 12px; font-weight: 400; line-height: 1.45; }
+  .opts__help-popover p { margin: 0 0 6px; }
+  .opts__help-popover ul { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 12px; margin: 0 0 6px; padding-left: 16px; }
+  .opts__help-popover p:last-child { margin-bottom: 0; }
+  .g-label-row { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+  .g-label-row .g-label { margin: 0; }
+  .g-row.has-help { position: relative; }
+  .g-row.has-help .opts__help { position: static; margin-left: 0; }
+  .g-row.has-help .opts__help-popover { top: 26px; left: 0; right: 0; width: auto; max-width: 360px; }
+  .opts__help-popover dl { margin: 0 0 6px; }
+  .dataset__head { display: flex; align-items: center; gap: 6px; }
+  .dataset__head .opts__help { margin-left: 0; }
+  .dataset__head .opts__help > summary { width: 20px; height: 20px; font: italic 700 12px/1 var(--font-head); }
+  .opts__help-popover a { color: var(--teal-700); font-weight: 600; overflow-wrap: anywhere; }
+  .chosen { display: block; padding-top: 8px; color: var(--ink-soft); font-size: 13px; line-height: 1.45; }
+  .chosen.is-none { color: var(--muted-light); }
+  .opts__help-popover dt { margin-top: 6px; font-weight: 700; }
+  .opts__help-popover dd { margin: 0; color: var(--ink-soft); }
+  .opts__years { display: flex; align-items: center; gap: 4px; }
+  .s-input.is-small, .s-select.is-small { padding-top: 4px; padding-bottom: 4px; font-size: 12.5px; }
+  .s-select.is-small { padding-right: 22px; background-position: right 7px center; }
+  .opts__vertical { font-size: 12.5px; }
+  .opts__msg { margin: 0; color: var(--ink); font-size: 12px; line-height: 1.35; }
+  .opts__msg.is-warn { color: var(--coral-dark); }
+  .s-input.is-outside { border-color: var(--coral-dark); }
+  .opts__msg:empty { display: none; }
+  .fix-settings { margin: 0; color: var(--ink); font-size: 12.5px; font-weight: 700; text-align: center; }
+  .write-action { display: grid; gap: 4px; }
+
+
+  @media (max-width: 1000px) {
+    .settings__grid, .settings--more .settings__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    col.c-obs { width: 150px; }
+    col.c-model { width: 28%; }
+    thead th, tbody td { padding-left: 14px; padding-right: 14px; }
+  }
+  @media (max-width: 760px) {
+    table, tbody, tr, td { display: block; width: 100%; }
+    thead, colgroup { display: none; }
+    tbody tr { padding: 14px 16px 10px; border-bottom: 1px solid var(--line-strong); }
+    tbody tr:last-child { border-bottom: 0; }
+    tbody td { padding: 0 0 10px; border: 0; }
+    td[data-label]::before {
+      content: attr(data-label);
+      display: block;
+      margin-bottom: 6px;
+      color: var(--muted-light);
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+    .settings__grid, .settings--more .settings__grid { grid-template-columns: 1fr; padding: 18px 16px 20px; }
+    .settings__head { padding: 14px 16px; }
+    .obs__title { padding-top: 0; }
+    .obs__key { display: inline; margin-left: 8px; }
+    .none { padding-top: 0; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="brand">
+      <span class="brand__word">Ocean<span>Val</span></span>
+    </div>
+    <h1 id="page-title">Gridded data selection</h1>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- page 1 of 2: the gridded datasets -->
+  <section class="page" id="page-gridded" aria-labelledby="page-title">
+    <div class="section-head">
+      <h2 class="section-title">Select gridded datasets to compare with observations</h2>
+    </div>
+    <p class="lede">Choose gridded climatologies and time series from the table below. In each case, select a suitable time period to use for any model-observation comparison. If applicable, ignore any model spinup period.</p>
+    <aside class="explainer" id="explainer-gridded" aria-labelledby="explainer-gridded-title"></aside>
+    <p class="lede" id="lede-gridded"></p>
+    <section class="settings card" aria-label="Settings for the gridded datasets">
+      <div class="settings__grid" id="settings-gridded">
+        <div class="settings__column">
+          <fieldset class="group" id="group-climate">
+            <legend>What simulation years do you want to use to compare with climatologies?</legend>
+            <p class="group__intro">Ideally, select a suitable long-term period covering 10 or more years to reduce the influence of short-term variability</p>
+            <p class="group__intro">This will apply to all climatologies, but can be overridden individually.</p>
+            <div class="g-row pair">
+              <label><span class="g-label">First year</span><input class="s-input is-num" id="s-clim_start" name="climatology-start-year" aria-label="First year for climatologies" inputmode="numeric" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
+              <label><span class="g-label">Last year</span><input class="s-input is-num" id="s-clim_end" name="climatology-end-year" aria-label="Last year for climatologies" inputmode="numeric" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
+            </div>
+            <p class="group__msg" id="g-output-years"></p>
+            <p class="group__msg" id="g-climate"></p>
+          </fieldset>
+        </div>
+        <div class="settings__column">
+          <fieldset class="group" id="group-fvcom" hidden>
+            <legend>How do you want the FVCOM output regridded?</legend>
+            <label class="g-row"><span class="g-label">Lon-lat resolution for point data (degrees)</span><input class="s-input is-num" id="s-fvcom_res" name="fvcom-resolution" inputmode="decimal" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
+            <div class="g-row pair">
+              <label><span class="g-label">Minimum depth (m)</span><input class="s-input is-num" id="s-fvcom_min_depth" name="fvcom-minimum-depth" inputmode="decimal" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
+              <label><span class="g-label">Maximum depth (m)</span><input class="s-input is-num" id="s-fvcom_max_depth" name="fvcom-maximum-depth" inputmode="decimal" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
+            </div>
+            <label class="g-row"><span class="g-label">Vertical spacing (m)</span><input class="s-input is-num" id="s-fvcom_dz" name="fvcom-vertical-spacing" inputmode="decimal" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
+            <p class="group__msg" id="g-fvcom"></p>
+          </fieldset>
+        </div>
+        <!-- moved to the page whose datasets need it (see placeThickness) -->
+        <div class="settings__column" id="thickness-gridded">
+          <fieldset class="group" id="group-thickness">
+            <legend>Model data info</legend>
+            <div id="row-thickness">
+            <label class="g-row"><span class="g-label">Is the simulation z-level or is thickness supplied?</span><input class="s-input is-mono" id="s-thickness" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
+            <p class="group__msg" id="g-thickness"></p>
+            </div>
+          </fieldset>
+        </div>
+      </div>
+    </section>
+
+    <div class="card">
+      <table>
+        <colgroup><col class="c-obs"><col class="c-model"><col class="c-gridded"></colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Environmental variable</th>
+            <th scope="col">What is the simulation variable name?</th>
+            <th scope="col"><span class="th-with-button">What gridded datasets do you want?<button type="button" class="btn btn--primary btn--th" id="clear-gridded">Deselect all</button></span></th>
+          </tr>
+        </thead>
+        <tbody id="rows-gridded"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- page 2 of 2: the point datasets -->
+  <section class="page" id="page-point" aria-labelledby="page-title" hidden>
+    <div class="section-head">
+      <h2 class="section-title">Select point datasets to compare with the simulation</h2>
+    </div>
+    <p class="lede">Choose point datasets from the table below. In each case, select a suitable time period to use for any model-observation comparison. If applicable, ignore any model spinup period.</p>
+    <aside class="explainer" id="explainer-point" aria-labelledby="explainer-point-title"></aside>
+    <p class="lede" id="lede-point"></p>
+    <section class="settings card" aria-label="Settings for the point datasets">
+      <div class="settings__grid" id="settings-point">
+        <div class="settings__column">
+          <fieldset class="group" id="group-years">
+            <legend>Settings for all point matchups</legend>
+            <span class="g-label" id="s-point_years-question">What simulation years do you want to compare with point observations?</span>
+            <div class="g-row pair">
+              <label><span class="g-label" id="s-point_start-label">First <span class="year-required" id="s-point_start-required" hidden>Required</span></span><input class="s-input is-num" id="s-point_start" inputmode="numeric" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
+              <label><span class="g-label" id="s-point_end-label">Last <span class="year-required" id="s-point_end-required" hidden>Required</span></span><input class="s-input is-num" id="s-point_end" inputmode="numeric" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
+            </div>
+            <p class="group__msg" id="g-years"></p>
+          </fieldset>
+        </div>
+        <div class="settings__column">
+          <fieldset class="group" id="group-point">
+            <div class="g-row has-help">
+              <div class="g-label-row">
+                <label class="g-label" for="s-point_time_res">Match point observations by</label>
+                <details class="opts__help" id="help-point_time_res">
+                  <summary aria-label="Explain how point observations are matched" title="How point observations are matched">?</summary>
+                  <div class="opts__help-popover" role="note">
+                    <p>Each observation has a date: a year, a month and a day. This chooses which of those are used to find the simulation output it is compared with. Anything a dataset does not have is simply not used, and only observations from each dataset's From to To years are used.</p>
+                    <dl>
+                      <dt>Year, month, day</dt>
+                      <dd>Exact dates. Each observation is compared with the simulation on the day it was made. Use this for daily, or finer, simulation output.</dd>
+                      <dt>Year, month</dt>
+                      <dd>Each observation is compared with the simulation's mean for that month of that year, and the day is ignored. Use this for monthly simulation output.</dd>
+                      <dt>Month, day</dt>
+                      <dd>Climatological: the year is ignored. Observations from any year are compared with the simulation's average for the same day of the year. Consider this if you have a short-term simulation, and want to compare it with observations over a longer time period.</dd>
+                      <dt>Month</dt>
+                      <dd>Climatological, by month. Observations from any year are compared with the simulation's average for that calendar month. Consider this if you have a short-term simulation, and want to compare it with observations over a longer time period.</dd>
+                    </dl>
+                    <p>This will apply to all point datasets, but can be overridden individually.</p>
+                  </div>
+                </details>
+              </div>
+              <select class="s-select" id="s-point_time_res"></select>
+            </div>
+            <p class="group__msg" id="g-point"></p>
+          </fieldset>
+        </div>
+        <div class="settings__column" id="thickness-point"></div>
+      </div>
+      <p class="settings__note">These settings will apply to all point datasets, but can be overridden individually.</p>
+    </section>
+
+    <div class="card">
+      <table>
+        <colgroup><col class="c-obs"><col class="c-model"><col class="c-point-wide"><col class="c-chosen"></colgroup>
+        <thead>
+          <tr>
+            <th scope="col">Environmental variable</th>
+            <th scope="col">What is the simulation variable name?</th>
+            <th scope="col"><span class="th-with-button">What point datasets do you want?<button type="button" class="btn btn--primary btn--th" id="clear-point">Deselect all</button></span></th>
+            <th scope="col">Gridded data selected</th>
+          </tr>
+        </thead>
+        <tbody id="rows-point"></tbody>
+      </table>
+    </div>
+
+    <!-- create_recipes on its own: what the oceanval app asks in its other steps -->
+    <section class="settings card settings--more" id="settings-more" aria-labelledby="settings-more-title">
+      <h2 class="settings__title settings__head" id="settings-more-title">Other settings</h2>
+      <div class="settings__grid">
+        <div class="settings__column">
+          <fieldset class="group" id="group-subset">
+            <legend>Do you want a spatial subset?</legend>
+            <div class="g-row span-row">
+              <span class="span-row__label">Longitude</span>
+              <input class="s-input is-num" id="s-lon_min" placeholder="min" aria-label="Minimum longitude" spellcheck="false" autocomplete="off" autocapitalize="off">
+              <span class="dash">–</span>
+              <input class="s-input is-num" id="s-lon_max" placeholder="max" aria-label="Maximum longitude" spellcheck="false" autocomplete="off" autocapitalize="off">
+            </div>
+            <div class="g-row span-row">
+              <span class="span-row__label">Latitude</span>
+              <input class="s-input is-num" id="s-lat_min" placeholder="min" aria-label="Minimum latitude" spellcheck="false" autocomplete="off" autocapitalize="off">
+              <span class="dash">–</span>
+              <input class="s-input is-num" id="s-lat_max" placeholder="max" aria-label="Maximum latitude" spellcheck="false" autocomplete="off" autocapitalize="off">
+            </div>
+            <p class="group__msg" id="g-subset"></p>
+          </fieldset>
+          <fieldset class="group" id="group-missing">
+            <div class="g-row">
+              <span class="g-label">What should be treated as missing values?</span>
+              <div class="span-row">
+                <input class="s-input is-num" id="s-missing_from" placeholder="value" aria-label="Treat as missing: the value, or the start of a range" spellcheck="false" autocomplete="off" autocapitalize="off">
+                <span class="dash">–</span>
+                <input class="s-input is-num" id="s-missing_to" placeholder="to" aria-label="Treat as missing: the end of a range" spellcheck="false" autocomplete="off" autocapitalize="off">
+              </div>
+            </div>
+            <p class="group__msg" id="g-missing"></p>
+          </fieldset>
+        </div>
+        <div class="settings__column">
+          <fieldset class="group" id="group-output">
+            <legend>Output</legend>
+            <label class="g-row"><span class="g-label">Directory</span><input class="s-input is-mono" id="s-out_dir" placeholder="Where you run the script" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
+            <p class="group__msg" id="g-output"></p>
+          </fieldset>
+          <fieldset class="group" id="group-files">
+            <legend>File filters</legend>
+            <label class="g-row"><span class="g-label">Skip file names containing <span class="g-note">(separate words with a space)</span></span><input class="s-input is-mono" id="s-exclude" placeholder="e.g. restart 5d" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
+            <label class="g-row"><span class="g-label">Only file names containing <span class="g-note">(separate words with a space)</span></span><input class="s-input is-mono" id="s-require" placeholder="e.g. grid_T" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
+            <p class="group__msg" id="g-files"></p>
+          </fieldset>
+        </div>
+        <div class="settings__column">
+          <fieldset class="group" id="group-matchup">
+            <label class="g-row cores-row"><span class="g-label">How many cores do you want to use?</span><select class="s-select" id="s-cores"></select></label>
+            <p class="group__msg" id="g-matchup"></p>
+          </fieldset>
+          <fieldset class="group form__wide" id="group-report">
+            <legend>Which additional validation report formats do you want?</legend>
+            <div class="g-row ticks report-formats">
+              <label class="tick-label"><input type="checkbox" class="tick" id="s-pdf">PDF</label>
+              <label class="tick-label"><input type="checkbox" class="tick" id="s-word">Word</label>
+            </div>
+            <p class="group__msg" id="g-report"></p>
+          </fieldset>
+        </div>
+        <div class="settings__column">
+          <fieldset class="group" id="group-detail">
+            <label class="g-row"><span class="g-label">How detailed do you want the validation to be?</span>
+              <select class="s-select" id="s-concise">
+                <option value="true">Concise</option>
+                <option value="false">Detailed</option>
+              </select>
+            </label>
+            <p class="group__msg" id="g-detail"></p>
+          </fieldset>
+          <fieldset class="group" id="group-regional">
+            <label class="g-row"><span class="g-label">Which region do you want to use for subregion analysis?</span>
+              <select class="s-select" id="s-subregions">
+                <option value="">None</option>
+                <option value="nwes">Northwest European Shelf subregions</option>
+                <option value="global">Global subregions</option>
+                <option value="file">A .nc file of your own…</option>
+              </select>
+            </label>
+            <label class="g-row" id="row-subregions_file" hidden><span class="g-label">Path to the file</span><input class="s-input is-mono" id="s-subregions_file" placeholder="/path/to/regions.nc" spellcheck="false" autocomplete="off" autocapitalize="off"></label>
+            <p class="group__msg" id="g-regional"></p>
+          </fieldset>
+        </div>
+      </div>
+      <div class="settings__ticks">
+        <label class="tick-label"><input type="checkbox" class="tick" id="s-overwrite">Overwrite existing matchups</label>
+        <label class="tick-label"><input type="checkbox" class="tick" id="s-ask">Ask before matching</label>
+      </div>
+    </section>
+  </section>
+</main>
+
+<footer class="bar">
+  <div class="wrap">
+    <p class="summary" id="summary" aria-live="polite"></p>
+    <div class="actions">
+      <button type="button" class="btn btn--text" id="reset" hidden>Reset</button>
+      <button type="button" class="btn btn--ghost" id="cancel">Cancel</button>
+      <div class="write-action">
+        <p class="fix-settings" id="fix-settings" hidden>Fix settings above</p>
+        <button type="button" class="btn btn--primary" id="write">Write script</button>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<div class="done" id="done" hidden>
+  <div class="done__card" role="dialog" aria-modal="true" aria-labelledby="done-title">
+    <div class="done__icon" id="done-icon"></div>
+    <h2 id="done-title" tabindex="-1"></h2>
+    <p id="done-text"></p>
+    <div id="done-extra"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script type="application/json" id="state">__OCEANVAL_STATE__</script>
+<script>
+/*__OCEANVAL_GUI_JS__*/
+</script>
+<script>
+(() => {
+  "use strict";
+
+  const state = JSON.parse(document.getElementById("state").textContent);
+  const context = state.context;
+  const available = new Set(state.available);
+
+  const { ICONS, $, el, icon, shorten, plural, toast, withChoices } = OceanValGUI;
+  // in the oceanval app the window is one of its steps, and writing the
+  // script also starts the matchup
+  const app = context.app || null;
+  const home = "../?token=" + encodeURIComponent(state.token);
+  // the app quits when the browser closes, which it knows by hearing from its pages
+  if (app) {
+    OceanValGUI.heartbeat(state.token, "../");
+    OceanValGUI.tellVisibility(state.token, "../");
+  }
+  // in the app, the window starts as it was last left, for Back from a later
+  // step or after going back before it (see app.recipes_restore)
+  const restore = (app && app.restore) || null;
+  // the first and last year of the simulation's output, read from its files'
+  // times (see oceanval.output_years): the arrow of each year box lists the
+  // years between, and any year can still be typed, in case those are wrong
+  const outputYears = Array.isArray(context.output_years) ? context.output_years : null;
+  const outputYearList = outputYears
+    ? Array.from({ length: outputYears[1] - outputYears[0] + 1 }, (_, number) => outputYears[0] + number)
+    : null;
+  if (outputYears) {
+    for (const name of ["point_start", "point_end", "clim_start", "clim_end"]) {
+      const box = $(`s-${name}`);
+      box.classList.add("is-year");
+      box.placeholder = String(outputYears[name.endsWith("start") ? 0 : 1]);
+      withChoices(box, outputYearList);
+    }
+  }
+
+  // ---- the two pages: the gridded datasets, then the point datasets ----
+  const PAGE_TITLES = { gridded: "Gridded data selection", point: "Point data selection" };
+  const KINDS = ["gridded", "point"];
+  // the page shown: as it was left, for Back from the step after the window
+  let page = restore && restore.page === "point" ? "point" : "gridded";
+  if (app) {
+    // chosen in the steps after the matchups are confirmed: the spatial
+    // subset, the missing values, the cores, where the output goes and the
+    // report's options (and the file filters, with the simulation)
+    $("settings-more").hidden = true;
+  }
+
+  function lede(kind) {
+    // the pages have no introduction of their own here, only these notes
+    const parts = [];
+    // the user's own data, which the script registers whatever is ticked
+    if (state.rows.some((row) => row.own.some((entry) => entry.kind === kind))) {
+      parts.push(" Your own data is always matched up, so is ticked in its row, marked ",
+        el("strong", { text: "Your data" }), ", with options like the other datasets'",
+        app ? "; to change anything else about it, or remove it, go back to the step where it was added." : ".");
+    }
+    if (restore && restore.retick) {
+      // the rows edited before, whose datasets are ticked for the domain chosen since
+      parts.push(" ", el("strong", { class: "oceanval-change",
+        text: "As the domain has changed, OceanVal has ticked the datasets afresh for it." }));
+    }
+    return parts;
+  }
+  // the explainer box of the gridded page: what the tags mean, and where each dataset comes from
+  function buildExplainer(kind) {
+    const tag = (text, title) => el("span", { class: "chip__region" + (title ? " has-tip" : ""), text, ...(title ? { "data-tip": title, tabindex: "0" } : {}) });
+    const source = (name) => [el("dt", {}, el("span", { class: "chip__name", text: name }), " etc."), el("dd", { text: "The name of the data source" })];
+    // the Vertical tick box as a dataset's row shows it, but not changeable
+    const vertical = [el("dt", {}, el("span", { class: "tick-label" },
+      el("input", { type: "checkbox", class: "tick", disabled: true, tabindex: "-1", "aria-hidden": "true" }), "Vertical")),
+      el("dd", { text: "Variables with this box have 3D data. Tick if you want 3D validation" })];
+    const entries = kind === "gridded"
+      ? [el("dt", {}, tag("Global"), " ", tag("NWES", "Northwest European shelf")), el("dd", { text: "The domain a dataset covers." }),
+        el("dt", {}, tag("clim")), el("dd", { text: "A climatology: observations averaged over many years." }),
+        el("dt", {}, tag("TS")), el("dd", { text: "A gridded dataset covering multiple years." }),
+        ...vertical, ...source("GLODAP")]
+      // point datasets have no clim or TS tag
+      : [el("dt", {}, tag("NWES", "Northwest European shelf")), el("dd", { text: "The domain a dataset covers." }),
+        ...vertical, ...source("ICES")];
+    $(`explainer-${kind}`).append(el("h2", { class: "explainer__title", id: `explainer-${kind}-title`, text: "Explainer" }),
+      el("dl", {}, ...entries));
+  }
+  for (const kind of KINDS) buildExplainer(kind);
+  for (const kind of KINDS) {
+    $(`lede-${kind}`).append(...lede(kind));
+    // a note that starts a line has no space before it
+    const first = $(`lede-${kind}`).firstChild;
+    if (first && first.nodeType === 3) first.textContent = first.textContent.trimStart();
+    $(`lede-${kind}`).hidden = !$(`lede-${kind}`).childNodes.length;
+  }
+  const hasOwnData = state.rows.some((row) => row.own.length);
+
+  // ---- the settings above each page's table ----
+  const form = { ...state.settings, concise: String(state.settings.concise) };
+  // what OceanVal assumes for a NEMO-ERSEM simulation, in amber until it is changed
+  const ERSEM_DEFAULTS = state.nemo_ersem && available.has("e3t") ? { thickness: "e3t" } : {};
+  for (const [name, value] of Object.entries(ERSEM_DEFAULTS)) {
+    if (!String(form[name] || "").trim()) form[name] = value;
+  }
+  const initialForm = { ...form };
+  // what create_recipes found wrong with the last Write, until the box changes
+  const serverErrors = {};
+  const GROUPS = {
+    years: ["point_start", "point_end"],
+    climate: ["clim_start", "clim_end"],
+    fvcom: ["fvcom_res", "fvcom_min_depth", "fvcom_max_depth", "fvcom_dz"],
+    subset: ["lon_min", "lon_max", "lat_min", "lat_max"],
+    output: ["out_dir", "overwrite"],
+    thickness: ["thickness"],
+    missing: ["missing_from", "missing_to"],
+    point: ["point_time_res"],
+    matchup: ["cores", "ask"],
+    files: ["exclude", "require"],
+    report: ["pdf", "word"],
+    detail: ["concise"],
+    regional: ["subregions", "subregions_file"],
+  };
+  // the page each group is on: the thickness is on the page that needs it
+  // (see placeThickness), and the rest on the point page, the last
+  const GROUP_PAGES = { climate: "gridded", fvcom: "gridded" };
+  const FIELDS = Object.values(GROUPS).flat();
+  // after what OceanVal filled in is taken, so Reset still puts it back,
+  // and the demo's values are only marked while they are unchanged
+  if (restore) {
+    for (const [name, value] of Object.entries(restore.settings)) {
+      if (FIELDS.includes(name)) form[name] = value;
+    }
+  }
+  // each setting as the boxes it is made of, so changes and problems are
+  // counted per setting rather than per box
+  const SETTINGS = [
+    ["point_start"], ["point_end"], ["clim_start"], ["clim_end"], ...GROUPS.fvcom.map((name) => [name]), GROUPS.subset,
+    ["out_dir"], ["overwrite"], ["thickness"], ["missing_from", "missing_to"], ["point_time_res"], ["cores"], ["ask"],
+    ["exclude"], ["require"], ["pdf"], ["word"], ["concise"], ["subregions", "subregions_file"],
+  ];
+  const groupOf = (name) => Object.keys(GROUPS).find((group) => GROUPS[group].includes(name));
+  const BOOLEANS = new Set(["overwrite", "ask", "pdf", "word"]);
+  const timeRes = new Map(state.time_res_options.map((option) => [option.value, option]));
+  const field = (name) => $(`s-${name}`);
+  field("point_time_res").append(...state.time_res_options.map((option) =>
+    el("option", { value: option.value, text: option.label })));
+  // 1 to the machine's cores; a kept value beyond them is still shown, with its error
+  const coreChoices = Array.from({ length: state.cpu_count || 0 }, (_, number) => String(number + 1));
+  if (String(form.cores).trim() && !coreChoices.includes(String(form.cores))) coreChoices.push(String(form.cores));
+  field("cores").append(...coreChoices.map((number) => el("option", { value: number, text: number })));
+  if (context.fvcom) {
+    // matchup regrids FVCOM output onto z-levels, over the mesh's extent
+    field("thickness").disabled = true;
+    field("thickness").placeholder = "z_level";
+    for (const name of GROUPS.subset) {
+      field(name).placeholder = name.endsWith("min") ? "mesh min" : "mesh max";
+    }
+  } else {
+    // z_level and the model's variables are listed as the thickness is typed in, one only (a pick is an input event)
+    OceanValGUI.variableBox(field("thickness"), {
+      available: ["z_level", ...state.available.filter((name) => name !== "z_level")], longNames: state.long_names || {}, multi: false });
+  }
+
+  function setControl(name) {
+    const control = field(name);
+    if (BOOLEANS.has(name)) control.checked = Boolean(form[name]);
+    else if (control.value !== String(form[name])) control.value = form[name];
+    control.classList.toggle(
+      "is-ersem",
+      ERSEM_DEFAULTS[name] !== undefined && String(form[name]) === ERSEM_DEFAULTS[name],
+    );
+    // a long path can be wider than its box
+    if (control.tagName === "INPUT" && !BOOLEANS.has(name)) control.title = control.value;
+  }
+
+  for (const name of FIELDS) {
+    const control = field(name);
+    setControl(name);
+    const event = BOOLEANS.has(name) || control.tagName === "SELECT" ? "change" : "input";
+    control.addEventListener(event, () => {
+      form[name] = BOOLEANS.has(name) ? control.checked : control.value;
+      setControl(name);
+      delete serverErrors[name];
+      summarise();
+    });
+  }
+
+  const isInteger = (text) => /^[+-]?\d+$/.test(String(text).trim());
+  function toNumber(text) {
+    const trimmed = String(text).trim();
+    if (trimmed === "") return null;
+    const value = Number(trimmed);
+    return Number.isFinite(value) ? value : NaN;
+  }
+  // a first and last year, if both are whole numbers in order
+  const yearPair = (first, last) =>
+    isInteger(first) && isInteger(last) && +first <= +last ? [+first, +last] : null;
+  // the years to validate the point datasets, as typed above them
+  const knownYears = () => yearPair(form.point_start, form.point_end);
+  // the years climatologies average the simulation over, as typed
+  const climYears = () => yearPair(form.clim_start, form.clim_end);
+  // how years sit against the output found in the simulation's files: null
+  // when inside (or not known), a warning when partly outside, an error when
+  // none of them is in it, as nothing would be matched up
+  function outsideOutput(first, last) {
+    const years = yearPair(first, last);
+    if (!outputYears || !years) return null;
+    const [low, high] = outputYears;
+    const found = low === high ? `all in ${low}` : `from ${low} to ${high}`;
+    const range = years[0] === years[1] ? `${years[0]}` : `${years[0]}–${years[1]}`;
+    if (years[1] < low || years[0] > high) {
+      return { level: "error", text: `${range} is not in the simulation's output, which is ${found}, so nothing would be matched up.` };
+    }
+    if (years[0] < low || years[1] > high) {
+      return { level: "warn", text: `These go beyond the ${low}–${high} found in the simulation's files. Check they are right: years with no output are not matched up.` };
+    }
+    return null;
+  }
+  // the WOA23 decade the years sit inside, if they sit inside one
+  const woa23Period = (years) =>
+    state.woa23_periods.find(([first, last]) => years[0] >= first && years[1] <= last);
+  const WOA23_DECADES = state.woa23_periods.map(([first, last]) => `${first}–${last}`).join(", ");
+  // the years every ticked dataset starts with where nothing above gives
+  // them: those create_recipes was given, in bold as OceanVal filled
+  // them in. In the app, none: each dataset's are typed
+  const initialYears = app
+    ? null
+    : (yearPair(context.start, context.end) ? [String(context.start), String(context.end)] : null);
+
+  // matchup needs a thickness to validate anything through the water column
+  // the user's own data as the window has it, or else as the app says it is
+  const ownVertical = () => ownChipList.length
+    ? ownChipList.some(({ chip }) => chip.dataset.opts.vertical) : Boolean(app && app.own_vertical);
+  const verticalTicked = (kind) =>
+    ownChipList.some(({ chip }) => chip.dataset.kind === kind && chip.dataset.opts.vertical)
+    || rows.some((row) => row.status === "ok" && row.datasets.some(
+      (dataset) => dataset.kind === kind && dataset.checked && dataset.opts.vertical));
+  const needsThickness = () => !context.fvcom && (ownVertical() || KINDS.some(verticalTicked));
+  // the years above are needed only by a point dataset without a first and last of its own
+  const lacksOwnYears = (dataset) => !dataset.typed.start || !dataset.typed.end;
+  const needsPointYears = () => (ownChipList.length
+    ? ownChipList.some(({ chip }) => chip.dataset.kind === "point" && lacksOwnYears(chip.dataset))
+    : Boolean(app && app.own_point))
+    || rows.some((row) => row.status === "ok" && row.datasets.some(
+      (dataset) => dataset.checked && dataset.kind === "point" && lacksOwnYears(dataset)));
+  const THICKNESS_NEEDED ="A dataset is set to Vertical, so a thickness is needed: z_level, a cell thickness variable or a file.";
+
+  // the thickness is asked on the point datasets' page if only they are set
+  // to Vertical, else on the page of the gridded datasets. Returns that page
+  function placeThickness() {
+    const onlyPoint = verticalTicked("point") && !verticalTicked("gridded")
+      && !(ownChipList.length === 0 && app && app.own_vertical);
+    const where = onlyPoint ? "point" : "gridded";
+    const group = $("group-thickness");
+    if (group.parentNode !== $(`thickness-${where}`)) $(`thickness-${where}`).append(group);
+    group.hidden = !needsThickness();
+    return where;
+  }
+
+  // the datasets that are matched up: ticked ones of a variable that is
+  // filled in, and the user's own
+  const tickedDatasets = () => [
+    ...rows.filter((row) => row.status === "ok").flatMap((row) => row.datasets.filter((dataset) => dataset.checked)),
+    ...ownChipList.map(({ chip }) => chip.dataset),
+  ];
+
+  // the years matchup is given: from the first to the last year of any
+  // dataset matched up, else the point datasets' years, those OceanVal
+  // starts with, or the simulation's own
+  function matchupYears() {
+    const years = tickedDatasets().map((dataset) => yearPair(dataset.opts.start, dataset.opts.end)).filter(Boolean);
+    if (!years.length) {
+      const fallback = knownYears() || (initialYears && yearPair(...initialYears)) || (outputYears && yearPair(...outputYears));
+      if (fallback) years.push(fallback);
+    }
+    if (!years.length) return null;
+    return [Math.min(...years.map((pair) => pair[0])), Math.max(...years.map((pair) => pair[1]))];
+  }
+
+  // the same rules create_recipes applies, so most problems show as you type
+  function settingErrors() {
+    const errors = {};
+    // needed by the point datasets ticked that have no years of their own
+    const required = needsPointYears();
+    for (const name of ["point_start", "point_end"]) {
+      const text = String(form[name]).trim();
+      if (text && !isInteger(text)) errors[name] = "Years must be whole numbers.";
+      else if (!text && required) {
+        errors[name] = outputYears ? `Type the ${name === "point_start" ? "first" : "last"} year, or choose it with the arrow.`
+          : `${name === "point_start" ? "First" : "Last"} must be a year, e.g. 2011.`;
+      }
+    }
+    if (!errors.point_start && !errors.point_end && isInteger(form.point_start) && isInteger(form.point_end)
+        && +form.point_end < +form.point_start) {
+      errors.point_end = "Last year must not be before the first year.";
+    }
+    const pointOutside = !errors.point_start && !errors.point_end ? outsideOutput(form.point_start, form.point_end) : null;
+    if (pointOutside && pointOutside.level === "error") errors.point_end = pointOutside.text;
+    if (!required && tickedDatasets().length && !matchupYears() && !errors.point_start) {
+      errors.point_start = "Give the years to validate, here or for a dataset.";
+    }
+
+    // both or neither
+    const clim = ["clim_start", "clim_end"].filter((name) => String(form[name]).trim());
+    for (const name of clim) {
+      if (!isInteger(form[name])) errors[name] = "Years must be whole numbers.";
+    }
+    if (clim.length === 1) {
+      errors[clim[0] === "clim_start" ? "clim_end" : "clim_start"] = "Give both years for climatologies, or leave them both empty.";
+    } else if (clim.length === 2 && !errors.clim_start && !errors.clim_end && +form.clim_end < +form.clim_start) {
+      errors.clim_end = "Last year must not be before the first year.";
+    }
+    const climOutside = clim.length === 2 && !errors.clim_start && !errors.clim_end ? outsideOutput(form.clim_start, form.clim_end) : null;
+    if (climOutside && climOutside.level === "error") errors.clim_end = climOutside.text;
+
+    if (context.fvcom) {
+      const numbers = {};
+      for (const [name, label, positive] of [
+        ["fvcom_res", "The resolution", true], ["fvcom_min_depth", "The minimum depth", false],
+        ["fvcom_max_depth", "The maximum depth", true], ["fvcom_dz", "The spacing", true],
+      ]) {
+        const value = toNumber(form[name]);
+        if (value === null) errors[name] = `${label} is needed.`;
+        else if (Number.isNaN(value)) errors[name] = `${label} must be a number.`;
+        else if (positive ? value <= 0 : value < 0) errors[name] = `${label} must be ${positive ? "more than" : ""} 0${positive ? "" : " or more"}.`;
+        else numbers[name] = value;
+      }
+      if (!errors.fvcom_min_depth && !errors.fvcom_max_depth && numbers.fvcom_max_depth <= numbers.fvcom_min_depth) {
+        errors.fvcom_max_depth = "The maximum depth must be more than the minimum.";
+      }
+    }
+
+    const given = GROUPS.subset.filter((name) => String(form[name]).trim());
+    for (const name of given) {
+      if (Number.isNaN(toNumber(form[name]))) errors[name] = "Limits must be numbers.";
+    }
+    if (given.length && given.length < GROUPS.subset.length) {
+      for (const name of GROUPS.subset) {
+        if (!given.includes(name)) errors[name] = "Fill in all four limits, or leave them all empty.";
+      }
+    } else if (given.length && !GROUPS.subset.some((name) => errors[name])) {
+      for (const [axis, low, high, label] of [["lon", -180, 360, "Longitude"], ["lat", -90, 90, "Latitude"]]) {
+        const first = toNumber(form[`${axis}_min`]);
+        const last = toNumber(form[`${axis}_max`]);
+        if (first < low || last > high) errors[`${axis}_min`] = `${label} must be between ${low} and ${high}.`;
+        else if (first >= last) errors[`${axis}_max`] = `The maximum ${label.toLowerCase()} must be more than the minimum.`;
+      }
+    }
+
+    // a path can only be checked by create_recipes, when the script is written
+    const thickness = String(form.thickness).trim();
+    if (thickness && !context.fvcom && !/^z[ _-]level$/.test(thickness)
+        && !available.has(thickness) && !/[\/~.]/.test(thickness)) {
+      errors.thickness = "Not a variable in the simulation output, or a file that exists.";
+    } else if (!thickness && app && needsThickness()) {
+      errors.thickness = THICKNESS_NEEDED;
+    }
+
+    const low = String(form.missing_from).trim();
+    const high = String(form.missing_to).trim();
+    if (low || high) {
+      const first = toNumber(low);
+      const last = toNumber(high);
+      if (!low) errors.missing_from = "Fill in the value, or the start of a range.";
+      else if (Number.isNaN(first)) errors.missing_from = "This must be a number.";
+      else if (high && Number.isNaN(last)) errors.missing_to = "This must be a number.";
+      else if (high && last < first) errors.missing_to = "The end of the range must not be less than its start.";
+    }
+
+    if (form.subregions === "file") {
+      const path = String(form.subregions_file).trim();
+      if (!path) errors.subregions_file = "Enter the path to a .nc file.";
+      else if (!path.endsWith(".nc")) errors.subregions_file = "This must be a .nc file.";
+    }
+
+    if (!String(form.cores).trim()) {
+      errors.cores = "Choose the number of cores.";
+    } else if (!isInteger(form.cores) || +form.cores < 1) {
+      errors.cores = "Cores must be a whole number, 1 or more.";
+    } else if (state.cpu_count && +form.cores > state.cpu_count) {
+      errors.cores = `This machine has ${state.cpu_count} cores. Choose ${state.cpu_count} or fewer.`;
+    }
+    return errors;
+  }
+
+  // the ticked WOA23 datasets published per decade
+  const decadalDatasets = () => rows.filter((row) => row.status === "ok").flatMap((row) => row.datasets
+    .filter((dataset) => dataset.decadal && dataset.checked)
+    .map((dataset) => ({ row, dataset })));
+
+  // the lines shown under a group when nothing in it needs fixing
+  function groupHints(group) {
+    switch (group) {
+      case "years": {
+        const hints = [];
+        // the years found can be wrong, so others can be given: they are only warned about
+        const outside = outsideOutput(form.point_start, form.point_end);
+        if (outside) hints.push({ text: outside.text, warn: true });
+        return hints;
+      }
+      case "climate": {
+        const hints = [];
+        const years = climYears();
+        const climOutside = outsideOutput(form.clim_start, form.clim_end);
+        if (climOutside) hints.push({ text: climOutside.text, warn: true });
+        const decadal = decadalDatasets().map(({ row }) => row.title.toLowerCase());
+        if (decadal.length && years && !woa23Period(years)) {
+          hints.push({ text: `WOA23 ${decadal.join(" and ")} ${decadal.length === 1 ? "is" : "are"} published per decade, so give `
+            + `${decadal.length === 1 ? "it" : "them"} years inside one: ${WOA23_DECADES}.`, warn: true });
+        }
+        return hints;
+      }
+      case "fvcom":
+        return [{ text: "Point data is regridded to this resolution, and gridded data to twice the resolution of its observations. "
+          + "Datasets set to Vertical are interpolated to the depths from the minimum to the maximum every spacing, "
+          + "and observations deeper than the maximum are not matched." }];
+      case "subset":
+        return [{ text: "Optional: only simulation output and observations inside this box are matched up. "
+          + (context.fvcom ? "Empty: the extent of the FVCOM mesh." : "Empty: the whole domain.") }];
+      case "output":
+        return [{ text: "Empty: the directory you run the script from. The report is built there too." }];
+      case "thickness": {
+        // only shown when a dataset is set to Vertical, which needs it
+        const hints = [{ text: "A dataset is set to Vertical, so OceanVal needs the simulation's cell thickness: z_level, a cell thickness variable or a file." }];
+        // in the app, a missing thickness is an error instead
+        if (!app && !String(form.thickness).trim()) {
+          hints.push({ text: "Matchup needs a thickness.", warn: true });
+        }
+        return hints;
+      }
+      case "missing":
+        return [{ text: "Treat as missing: one value, or everything in a range." }];
+      case "point":
+        return [];  // the ? beside the box explains each option
+      case "matchup":
+        return app ? [] : [{ text: "Untick Ask to run the script as a batch job, e.g. with SLURM." }];
+      case "files":
+        return [{ text: "Only file names are checked, not directories." }];
+      default:
+        return [];
+    }
+  }
+
+  // marks each box and shows each group's error or hint; returns how many
+  // settings need fixing on each page
+  function refreshSettings() {
+    const errors = { ...settingErrors(), ...serverErrors };
+    // a box that is not needed is not shown, so nothing in it can be wrong
+    const thicknessPage = placeThickness();
+    $("group-fvcom").hidden = !context.fvcom;
+    if (!context.fvcom) for (const name of GROUPS.fvcom) delete errors[name];
+    if (!needsThickness()) delete errors.thickness;
+    $("row-subregions_file").hidden = form.subregions !== "file";
+    const required = needsPointYears();
+    for (const name of ["point_start", "point_end"]) {
+      $(`s-${name}-label`).classList.toggle("is-required", required);
+      $(`s-${name}-required`).hidden = !required;
+      field(name).required = required;
+    }
+    for (const [group, names] of Object.entries(GROUPS)) {
+      for (const name of names) {
+        field(name).classList.toggle("is-invalid", Boolean(errors[name]));
+        field(name).setAttribute("aria-invalid", String(Boolean(errors[name])));
+      }
+      const msg = $(`g-${group}`);
+      const problems = [...new Set(names.filter((name) => errors[name]).map((name) => errors[name]))];
+      if (problems.length) {
+        msg.className = "group__msg is-error";
+        msg.replaceChildren(...problems.map((text) =>
+          el("span", { class: "group__line" }, icon("error"), el("span", { text }))));
+        continue;
+      }
+      msg.className = "group__msg";
+      msg.replaceChildren(...groupHints(group).map((hint) =>
+        el("span", { class: "group__line" + (hint.ersem ? " is-ersem" : hint.warn ? " is-warn" : "") },
+          hint.warn || hint.ersem ? icon("warn") : null, el("span", { text: hint.text }))));
+    }
+    const counts = { gridded: 0, point: 0 };
+    for (const names of SETTINGS) {
+      if (!names.some((name) => errors[name])) continue;
+      const group = groupOf(names[0]);
+      counts[group === "thickness" ? thicknessPage : GROUP_PAGES[group] || "point"] += 1;
+    }
+    return counts;
+  }
+
+  // ---- rows ----
+  // a dataset's options before anything is typed in them, surface-only
+  const blankOptions = (kind) => kind === "point"
+    ? { point_time_res: "", start: "", end: "", vertical: false }
+    : { start: "", end: "", vertical: false };
+  // the options OceanVal fills in for a dataset while they are not typed in
+  const FILLED = { point: ["point_time_res", "start", "end"], gridded: ["start", "end"] };
+  // a row with datasets to tick; one with only the user's own data is only shown
+  const hasDatasets = (row) => row.gridded.length + row.point.length > 0;
+  // whether a row is on a kind's page: it has datasets of that kind, its own or the user's
+  const hasKind = (row, kind) => row[kind].length > 0 || row.own.some((entry) => entry.kind === kind);
+  // the user's own datasets' chips, as { row, chip }, built with the rows
+  const ownChipList = [];
+  const rows = state.rows.filter(hasDatasets).map((row) => ({
+    ...row,
+    original: row.model_variable,
+    value: row.model_variable,
+    status: "ok",
+    message: "",
+    // an unidentified row takes its default ticks once it is filled in
+    needsDefaults: !row.model_variable,
+    datasets: [
+      ...row.gridded.map((dataset) => ({ ...dataset, kind: "gridded" })),
+      ...row.point.map((dataset) => ({ ...dataset, kind: "point" })),
+    ].map((dataset) => ({
+      ...dataset,
+      checked: dataset.ticked,
+      opts: blankOptions(dataset.kind),
+      // the options the user typed in, which OceanVal no longer fills in
+      typed: {},
+      serverErrors: {},
+    })),
+  }));
+
+  // what a dataset's box holds while it is not typed in: the point
+  // datasets' from the boxes above them, the climatologies' from the years
+  // for climatologies, and otherwise the years OceanVal starts with, if any
+  function filledValue(dataset, name) {
+    if (name === "point_time_res") return String(form.point_time_res);
+    let value = "";
+    if (dataset.kind === "point") value = String(form[`point_${name}`]).trim();
+    else if (dataset.climatology) value = String(form[`clim_${name}`]).trim();
+    if (!value && initialYears) value = initialYears[name === "start" ? 0 : 1];
+    return value;
+  }
+  function fill(dataset) {
+    for (const name of FILLED[dataset.kind]) {
+      if (!dataset.typed[name]) dataset.opts[name] = filledValue(dataset, name);
+    }
+  }
+  const fillAll = () => {
+    rows.forEach((row) => row.datasets.forEach(fill));
+    ownChipList.forEach(({ chip }) => fill(chip.dataset));
+  };
+
+  function check(value) {
+    const text = value.trim();
+    if (!text) return { status: "empty", message: "" };
+    const names = text.split("+").map((name) => name.trim());
+    if (names.some((name) => !name)) {
+      return { status: "invalid", message: "Remove the empty name beside “+”." };
+    }
+    const unknown = names.filter((name) => !available.has(name));
+    if (unknown.length) {
+      const list = unknown.length === 1 ? unknown[0]
+        : unknown.slice(0, -1).join(", ") + " and " + unknown[unknown.length - 1];
+      return { status: "invalid", message: `${list} ${unknown.length === 1 ? "is" : "are"} not in the simulation output.` };
+    }
+    return { status: "ok", message: "" };
+  }
+
+  function setValue(row, value) {
+    row.value = value;
+    Object.assign(row, check(value));
+    if (row.status === "empty") {
+      row.datasets.forEach((dataset) => { dataset.checked = false; });
+      row.needsDefaults = true;
+    } else if (row.status === "ok" && row.needsDefaults) {
+      row.datasets.forEach((dataset) => { dataset.checked = dataset.default; });
+      row.needsDefaults = false;
+    }
+    update(row);
+    summarise();
+  }
+
+  // the row's simulation variable box on the page shown, or on the other
+  const inputOf = (row) => {
+    const views = row.dom.views;
+    return (views.find((view) => view.kind === page) || views[0]).input;
+  };
+
+  function undo(row) {
+    return el("button", {
+      type: "button",
+      class: "link",
+      text: "Undo",
+      onclick: () => { setValue(row, row.original); inputOf(row).focus(); },
+    });
+  }
+
+  function message(row) {
+    const edited = row.value.trim() !== row.original;
+    // the model variable chosen before, which this simulation does not have,
+    // so OceanVal has put back what it found: said until the row is changed
+    const dropped = row.dropped && !edited
+      ? el("span", { class: "oceanval-change", text: `${row.dropped}, chosen before, is not in this simulation's output.` })
+      : null;
+    if (row.status === "invalid") {
+      return [icon("error"), el("span", {}, row.message + " ", row.original ? undo(row) : null)];
+    }
+    if (row.status === "empty") {
+      if (row.original) {
+        return [icon("warn"), el("span", {}, `Cleared, so its datasets are off. It was ${row.original}. `, undo(row))];
+      }
+      return [icon("warn"), el("span", {}, dropped, dropped ? " " : null,
+        "Not identified. Type or pick a simulation variable to use its datasets.")];
+    }
+    if (edited) {
+      const was = row.original ? `Changed from ${row.original}. ` : "Not identified automatically. ";
+      return [el("span", {}, was, undo(row))];
+    }
+    return dropped ? [icon("warn"), el("span", {}, dropped, " This is the one OceanVal found.")] : [];
+  }
+
+  // the gridded datasets a row is validated against, for the point page's last column
+  function chosenGridded(row) {
+    const ticked = (row.datasets || []).filter((dataset) =>
+      dataset.kind === "gridded" && dataset.checked && row.status === "ok");
+    return [
+      ...ticked.map((dataset) => dataset.label),
+      ...row.own.filter((entry) => entry.kind === "gridded").map((entry) => `${entry.label} (your data)`),
+    ];
+  }
+  // the cells of that column, as { row, cell }
+  const chosenCells = [];
+  function refreshChosen() {
+    for (const { row, cell } of chosenCells) {
+      const names = chosenGridded(row);
+      cell.textContent = names.length ? `Yes: ${names.join(", ")}` : "None";
+      cell.classList.toggle("is-none", !names.length);
+    }
+  }
+
+  function update(row) {
+    const { views, chips } = row.dom;
+    for (const { kind, tr, input, msg } of views) {
+      if (input.value !== row.value) input.value = row.value;
+      input.title = row.value;
+      tr.classList.toggle("is-empty", row.status === "empty");
+      tr.classList.toggle("is-invalid", row.status === "invalid");
+      // the user's own data is always ticked
+      tr.classList.toggle("is-selected", row.status === "ok"
+        && (chips.some((chip) => chip.dataset.kind === kind && chip.dataset.checked) || ownChips(row, kind).length > 0));
+      input.setAttribute("aria-invalid", String(row.status === "invalid"));
+      msg.replaceChildren(...message(row));
+    }
+    const locked = row.status !== "ok";
+    for (const chip of chips) {
+      chip.box.checked = chip.dataset.checked;
+      chip.box.disabled = locked;
+      chip.label.classList.toggle("is-on", chip.dataset.checked && !locked);
+      chip.label.classList.toggle("is-disabled", locked);
+      refreshOptions(row, chip);
+    }
+  }
+
+  function optionErrors(dataset) {
+    const errors = { ...dataset.serverErrors };
+    const opts = dataset.opts;
+    const missing = dataset.decadal ? "Give both years, inside one WOA23 decade." : "Give both years.";
+    for (const name of ["start", "end"]) {
+      const text = String(opts[name]).trim();
+      // each dataset matched up needs its years
+      if (!text) errors[name] = errors[name] || missing;
+      else if (!isInteger(text)) errors[name] = "Years must be whole numbers.";
+    }
+    if (Object.keys(errors).length) return errors;
+    if (+opts.start > +opts.end) errors.end = "To must not be before From.";
+    else if (dataset.decadal && !woa23Period([+opts.start, +opts.end])) {
+      errors.end = `WOA23 publishes this per decade, so these years must sit inside one: ${WOA23_DECADES}.`;
+    }
+    const outside = outsideOutput(opts.start, opts.end);
+    if (outside && outside.level === "error") errors.end = outside.text;
+    return errors;
+  }
+
+  // shows a ticked dataset's options; returns whether they need fixing
+  function refreshOptions(row, chip) {
+    const { dataset, opts } = chip;
+    // the user's own data has its own simulation variable
+    const shown = dataset.own || (row.status === "ok" && dataset.checked);
+    opts.block.hidden = !shown;
+    for (const [name, control] of Object.entries(opts.controls)) {
+      if (name === "vertical") control.checked = dataset.opts.vertical;
+      else if (control.value !== dataset.opts[name]) control.value = dataset.opts[name];
+      // what OceanVal filled in is red and bold until it is typed over
+      if (name !== "vertical") {
+        control.classList.toggle("is-oceanval", !dataset.typed[name] && Boolean(String(dataset.opts[name]).trim()));
+      }
+    }
+    const select = opts.controls.point_time_res;
+    if (select) {
+      const option = timeRes.get(dataset.opts.point_time_res);
+      select.title = option ? option.hint : "";
+    }
+    const errors = shown ? optionErrors(dataset) : {};
+    // the years are required while either is missing
+    const missing = shown && ["start", "end"].some((name) => !String(dataset.opts[name]).trim());
+    opts.yearsRow.classList.toggle("is-required", missing);
+    for (const name of ["start", "end"]) {
+      const empty = missing && !String(dataset.opts[name]).trim();
+      opts.controls[name].required = empty;
+      opts.controls[name].setAttribute("aria-required", String(empty));
+    }
+    for (const [name, control] of Object.entries(opts.controls)) {
+      control.classList.toggle("is-invalid", Boolean(errors[name]));
+      control.setAttribute("aria-invalid", String(Boolean(errors[name])));
+    }
+    // years partly outside the output are only warned about, in amber
+    const outside = shown && !Object.keys(errors).length ? outsideOutput(dataset.opts.start, dataset.opts.end) : null;
+    opts.msg.textContent = Object.values(errors).find(Boolean) || (outside ? outside.text : "");
+    opts.msg.classList.toggle("is-warn", Boolean(outside) && !Object.keys(errors).length);
+    for (const name of ["start", "end"]) opts.controls[name].classList.toggle("is-outside", Boolean(outside));
+    return Object.keys(errors).length > 0;
+  }
+
+  // a dataset's own options: how point observations are matched, the years,
+  // and Vertical where the observations are resolved in depth
+  function buildOptions(row, dataset) {
+    const name = `${dataset.label} observations for ${row.title}`;
+    const controls = {};
+    const parts = [];
+    if (dataset.kind === "point") {
+      controls.point_time_res = el("select", { class: "s-select is-small", "aria-label": `Match ${name} by` },
+        ...state.time_res_options.map((option) => el("option", { value: option.value, text: option.label })));
+      const given = dataset.own ? dataset.opts.point_time_res : "";
+      if (given && !timeRes.has(given)) {
+        // the own data step can give any of year, month and day
+        const text = given.split(",").join(", ");
+        timeRes.set(given, { value: given, label: text, hint: "As given with your data" });
+        controls.point_time_res.append(el("option", { value: given, text: text[0].toUpperCase() + text.slice(1) }));
+      }
+      parts.push(el("div", { class: "opts__row" },
+        el("span", { class: "opts__label", text: "Match by" }), controls.point_time_res));
+    }
+    [controls.start, controls.end] = ["start", "end"].map((key) => el("input", {
+      class: "s-input is-num is-small",
+      inputmode: "numeric",
+      placeholder: key === "start" ? "from" : "to",
+      spellcheck: "false",
+      autocomplete: "off",
+      "aria-label": `${key === "start" ? "First" : "Last"} year of ${name}`,
+    }));
+    if (outputYears) {
+      // the arrow lists the years of the simulation's output; any year can still be typed
+      for (const box of [controls.start, controls.end]) {
+        box.classList.add("is-year");
+        withChoices(box, outputYearList);
+      }
+    }
+    const years = el("span", { class: "opts__years" },
+      controls.start, el("span", { class: "dash", text: "–" }), controls.end);
+    const yearsLabel = el("span", { class: "opts__label" }, "Years");
+    if (dataset.decadal) {
+      const help = el("details", { class: "opts__help" },
+        el("summary", { "aria-label": "Show available WOA23 year periods", title: "Available WOA23 year periods" }, "?"),
+        el("div", { class: "opts__help-popover", role: "note" },
+          el("p", {}, el("strong", { text: "Available WOA23 periods" })),
+          el("ul", {}, ...state.woa23_periods.map(([first, last]) => el("li", { text: `${first}–${last}` }))),
+          el("p", { text: "From and To must fit within the same period." })));
+      yearsLabel.append(help);
+    }
+    const yearsRow = el("div", { class: "opts__row" }, yearsLabel, years);
+    parts.push(yearsRow);
+    if (dataset.vertical_option) {
+      controls.vertical = el("input", {
+        type: "checkbox",
+        class: "tick",
+        "aria-label": `Validate ${name} through the full water column`,
+      });
+      parts.push(el("label", {
+        class: "tick-label opts__vertical",
+        title: "Validate the full water column. Unticked is surface-only.",
+      }, controls.vertical, "Vertical"));
+    }
+    for (const [key, control] of Object.entries(controls)) {
+      const tick = key === "vertical";
+      control.addEventListener(tick || control.tagName === "SELECT" ? "change" : "input", () => {
+        dataset.opts[key] = tick ? control.checked : control.value;
+        // the user's own, which OceanVal no longer fills in
+        if (!tick) dataset.typed[key] = true;
+        delete dataset.serverErrors[key];
+        delete dataset.serverErrors[""];
+        summarise();
+      });
+    }
+    const msg = el("p", { class: "opts__msg" });
+    const block = el("div", { class: "opts" }, ...parts, msg);
+    return { block, controls, years, yearsRow, msg };
+  }
+
+  // the i beside a gridded source: the years its observations cover, and its page
+  function coverageInfo(dataset) {
+    const coverage = dataset.coverage;
+    if (!coverage || !coverage.url) return null;
+    return el("details", { class: "opts__help dataset__info" },
+      el("summary", { "aria-label": `About ${dataset.label}: the years it covers, and its web page`, title: `About ${dataset.label}` }, "i"),
+      el("div", { class: "opts__help-popover", role: "note" },
+        coverage.years ? el("p", {}, el("strong", { text: "Years covered: " }), coverage.years) : null,
+        coverage.note ? el("p", { text: coverage.note }) : null,
+        el("p", {}, el("a", { href: coverage.url, target: "_blank", rel: "noopener noreferrer", text: coverage.url }))));
+  }
+
+  function buildChip(row, dataset) {
+    const box = el("input", {
+      type: "checkbox",
+      "aria-label": `${dataset.label}, ${dataset.region_name}, for ${row.title}`,
+    });
+    box.addEventListener("change", () => {
+      dataset.checked = box.checked;
+      update(row);
+      summarise();
+    });
+    const label = el("label", {
+      class: "chip",
+      title: [dataset.source, dataset.region_name, dataset.details].filter(Boolean).join("\n"),
+    },
+      box,
+      el("span", { class: "chip__name", text: dataset.label }),
+      el("span", {
+        class: "chip__region" + (dataset.user ? " is-yours" : dataset.region_name === context.region ? " is-domain" : ""),
+        // gridded recipes say whether they are a climatology or a time series
+        text: dataset.kind === "gridded" && !dataset.user ? `${dataset.region} ${dataset.climatology ? "clim" : "TS"}` : dataset.region,
+      }));
+    return { dataset, box, label, info: coverageInfo(dataset), opts: buildOptions(row, dataset) };
+  }
+
+  // the user's own data, which the script registers whatever is ticked here,
+  // so its box is ticked for good, with options as a recipe's dataset has.
+  // Returns a chip as buildChip does, and lists it in ownChipList
+  function ownChip(row, entry) {
+    const dataset = {
+      ...entry,
+      own: true,
+      checked: true,
+      // the calls take Vertical for any data, though csv files need a depth column
+      vertical_option: true,
+      decadal: false,
+      opts: { ...entry.opts },
+      // what the call gives is the user's, so it is not filled in
+      typed: Object.fromEntries(Object.entries(entry.opts).map(([name, value]) => [name, typeof value === "string" && Boolean(value.trim())])),
+      // as the window was shown with them, for Reset
+      initial: { ...entry.opts },
+      serverErrors: {},
+    };
+    dataset.initialTyped = { ...dataset.typed };
+    const details = [
+      `${entry.label}: your own ${entry.kind} data`,
+      entry.path,
+      entry.model_variable ? `Matched with the simulation's ${entry.model_variable}` : null,
+      entry.saved ? "Saved as a recipe too, which later matchups offer" : null,
+      app ? "Added in an earlier step: go back to it to change anything else about it, or remove it."
+        : "Given to create_recipes as own_data.",
+    ];
+    const label = el("label", { class: "chip is-own", title: details.filter(Boolean).join("\n") },
+      el("input", {
+        type: "checkbox",
+        checked: true,
+        disabled: true,
+        "aria-label": `${entry.label}, your data, for ${row.title}: always matched up`,
+      }),
+      el("span", { class: "chip__name", text: entry.label }),
+      el("span", { class: "chip__region is-yours", text: "Your data" }));
+    const chip = { dataset, label, info: null, opts: buildOptions(row, dataset) };
+    ownChipList.push({ row, chip });
+    return chip;
+  }
+
+  function datasetsCell(label, chips, emptyTitle) {
+    return el("td", { "data-label": label },
+      chips.length
+        ? el("div", { class: "chips" }, ...chips.map((chip) =>
+          el("div", { class: "dataset" }, el("div", { class: "dataset__head" }, chip.label, chip.info), chip.opts.block)))
+        : el("span", { class: "none", title: emptyTitle, "aria-label": emptyTitle, text: "—" }));
+  }
+
+  // the user's own data of a kind in a row, as chips
+  const ownChips = (row, kind) =>
+    row.own.filter((entry) => entry.kind === kind).map((entry) => ownChip(row, entry));
+
+  // the model's variables, listed as a box is typed in (see OceanValGUI.variableBox)
+  function variableBox(input, options) {
+    return OceanValGUI.variableBox(input, { available: state.available, longNames: state.long_names || {}, ...options });
+  }
+
+  const DATASET_HEADS = { gridded: "What gridded datasets do you want?", point: "What point datasets do you want?" };
+
+  function titleCell(row) {
+    return el("td", {},
+      el("span", { class: "obs__title", text: row.display || row.title }),
+      row.variable === row.title.toLowerCase() ? null : el("code", { class: "obs__key", text: row.variable }));
+  }
+
+  // the point page's last column: the gridded datasets chosen for the row
+  function chosenCell(row) {
+    const cell = el("span", { class: "chosen" });
+    chosenCells.push({ row, cell });
+    return el("td", { "data-label": "Gridded data selected" }, cell);
+  }
+
+  // a recipe row on one page: its simulation variable box, which each page
+  // the row is on has a copy of, and the datasets of that page's kind
+  function buildRow(row, kind) {
+    const input = el("input", {
+      class: "field__input",
+      type: "text",
+      value: row.value,
+      placeholder: "Not identified",
+      spellcheck: "false",
+      autocomplete: "off",
+      autocapitalize: "off",
+      "aria-label": `Simulation variable for ${row.title}`,
+      "aria-describedby": `message-${kind}-${row.variable}`,
+    });
+    input.addEventListener("input", () => setValue(row, input.value));
+    const msg = el("p", { class: "field__msg", id: `message-${kind}-${row.variable}` });
+    // any number of the model's variables can be summed, as a+b (a pick is an input event, so setValue takes it)
+    variableBox(input, { multi: true });
+    const cells = [
+      titleCell(row),
+      el("td", { "data-label": "What is the simulation variable name?" }, input, msg),
+      datasetsCell(DATASET_HEADS[kind],
+        [...row.dom.chips.filter((chip) => chip.dataset.kind === kind), ...ownChips(row, kind)],
+        `No ${kind} dataset for ${row.title}`),
+    ];
+    if (kind === "point") cells.push(chosenCell(row));
+    const tr = el("tr", {}, ...cells);
+    row.dom.views.push({ kind, tr, input, msg });
+    return tr;
+  }
+
+  // a row with only the user's own data, which has its own simulation
+  // variable, so there is nothing in it to change
+  function buildOwnRow(row, kind) {
+    const names = [...new Set(row.own.map((entry) => entry.model_variable).filter(Boolean))];
+    const cells = [
+      titleCell(row),
+      el("td", { "data-label": "What is the simulation variable name?" },
+        el("span", { class: "own__model", text: names.join(", ") }),
+        el("p", { class: "field__msg", text: "Given with your data." })),
+      datasetsCell(DATASET_HEADS[kind], ownChips(row, kind), `No ${kind} dataset for ${row.title}`),
+    ];
+    if (kind === "point") cells.push(chosenCell(row));
+    return el("tr", { class: "is-own" }, ...cells);
+  }
+
+  // a row as it was left: its model variable and, unless the domain has
+  // changed since, which datasets were ticked, with their options
+  function keepRow(row, kept) {
+    row.value = kept.model_variable;
+    if (!row.value.trim()) {
+      row.datasets.forEach((dataset) => { dataset.checked = false; });
+      row.needsDefaults = true;
+    } else if (kept.selected) {
+      row.needsDefaults = false;
+      for (const dataset of row.datasets) {
+        dataset.checked = kept.selected.includes(dataset.recipe);
+        const sent = (kept[dataset.kind] || {})[dataset.recipe] || {};
+        const opts = blankOptions(dataset.kind);
+        for (const name of Object.keys(opts)) {
+          if (name in sent) opts[name] = typeof opts[name] === "boolean" ? Boolean(sent[name]) : String(sent[name]);
+        }
+        dataset.opts = opts;
+        // only what was typed stays as it was: the rest is filled in afresh
+        dataset.typed = Object.fromEntries((sent.typed || []).map((name) => [name, true]));
+      }
+    } else if (row.needsDefaults) {
+      // ticked afresh, as for a variable filled in
+      row.datasets.forEach((dataset) => { dataset.checked = dataset.default; });
+      row.needsDefaults = false;
+    }
+  }
+
+  if (restore) {
+    for (const row of rows) {
+      if (restore.rows[row.variable]) keepRow(row, restore.rows[row.variable]);
+      row.dropped = restore.dropped[row.variable] || null;
+    }
+  }
+
+  const tbodies = { gridded: $("rows-gridded"), point: $("rows-point") };
+  for (const shown of state.rows) {
+    const row = rows.find((candidate) => candidate.variable === shown.variable);
+    if (row) row.dom = { views: [], chips: row.datasets.map((dataset) => buildChip(row, dataset)) };
+    for (const kind of KINDS) {
+      if (hasKind(shown, kind)) tbodies[kind].append(row ? buildRow(row, kind) : buildOwnRow(shown, kind));
+    }
+    if (!row) continue;
+    Object.assign(row, check(row.value));
+    update(row);
+  }
+  for (const kind of KINDS) {
+    if (!tbodies[kind].children.length) {
+      tbodies[kind].append(el("tr", {}, el("td", { colspan: kind === "point" ? "4" : "3", class: "none",
+        text: `OceanVal has no ${kind} datasets for the variables in this simulation's output.` })));
+    }
+  }
+
+  // ---- pop-outs close when you click outside them, or press Escape ----
+  const POPOVERS = "details.opts__help[open]";
+  document.addEventListener("click", (event) => {
+    const path = event.composedPath();
+    for (const details of document.querySelectorAll(POPOVERS)) {
+      if (!path.includes(details)) details.open = false;
+    }
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || event.defaultPrevented) return;
+    for (const details of document.querySelectorAll(POPOVERS)) details.open = false;
+  });
+
+  // ---- summary and actions ----
+  const writeButton = $("write");
+  const cancelButton = $("cancel");
+  const resetButton = $("reset");
+  let busy = false;
+  // in the app, the units and where the matchups are saved come next
+  const writeLabel = app ? "Continue" : "Write script";
+
+  const ownChanged = ({ chip: { dataset } }) => Object.keys(dataset.opts).some((name) =>
+    dataset.typed[name] !== dataset.initialTyped[name]
+    || (dataset.typed[name] && dataset.opts[name] !== dataset.initial[name]));
+  const changed = () =>
+    FIELDS.some((name) => form[name] !== initialForm[name])
+    || ownChipList.some(ownChanged)
+    || rows.some((row) => row.value.trim() !== row.original || row.datasets.some((dataset) =>
+      dataset.checked !== dataset.ticked
+      || dataset.opts.vertical
+      || Object.values(dataset.typed).some(Boolean)));
+
+  // what needs fixing on each page: model variables, and settings and options
+  function problems() {
+    const found = { gridded: { variables: 0, settings: 0 }, point: { variables: 0, settings: 0 } };
+    const counts = refreshSettings();
+    for (const kind of KINDS) found[kind].settings = counts[kind];
+    for (const row of rows) {
+      for (const kind of KINDS) {
+        if (row.status === "invalid" && hasKind(row, kind)) found[kind].variables += 1;
+      }
+      for (const chip of row.dom.chips) {
+        if (refreshOptions(row, chip)) found[chip.dataset.kind].settings += 1;
+      }
+    }
+    for (const { row, chip } of ownChipList) {
+      if (refreshOptions(row, chip)) found[chip.dataset.kind].settings += 1;
+    }
+    return found;
+  }
+
+  function summarise() {
+    fillAll();
+    const found = problems();
+    refreshChosen();
+    // a row on both pages is counted once
+    const invalidRows = rows.filter((row) => row.status === "invalid").length;
+    // the gridded page needs its own fixed to carry on; the point page, everything
+    const here = page === "gridded"
+      ? { invalid: found.gridded.variables, settings: found.gridded.settings }
+      : { invalid: invalidRows, settings: found.gridded.settings + found.point.settings };
+    const before = page === "point" ? found.gridded.settings : 0;
+    const comparisons = rows.filter((row) => row.status === "ok").reduce(
+      (count, row) => count + row.datasets.filter((dataset) => dataset.checked).length, 0);
+    for (const kind of KINDS) {
+      $(`clear-${kind}`).disabled = !rows.some((row) =>
+        row.datasets.some((dataset) => dataset.kind === kind && dataset.checked));
+    }
+    const parts = [];
+    if (here.invalid) {
+      parts.push(el("span", { class: "summary__warn", text: `${plural(here.invalid, "simulation variable")} to fix` }));
+    }
+    if (here.settings) {
+      parts.push(el("span", { class: "summary__warn", text: `${plural(here.settings, "setting")} to fix`
+        + (before ? `, ${before} on the page before` : "") }));
+    }
+    if (page === "point" && !here.invalid && !here.settings && !comparisons) {
+      parts.push(el("span", { class: "summary__warn is-soft", text: hasOwnData
+        ? "Only your own data is ticked, so every recipe will be commented out"
+        : "Nothing ticked, so every recipe will be commented out" }));
+    }
+    const summary = $("summary");
+    summary.replaceChildren();
+    parts.forEach((part, index) => {
+      if (index) summary.append(el("span", { class: "summary__dot", "aria-hidden": "true", text: "•" }));
+      summary.append(part);
+    });
+    const blocked = here.invalid > 0 || here.settings > 0;
+    writeButton.disabled = busy || blocked;
+    $("fix-settings").hidden = !blocked;
+    $("fix-settings").textContent = before && before === here.settings && !here.invalid
+      ? "Fix settings on the page before" : "Fix settings above";
+    writeButton.title = blocked ? "Fix what is marked in red first"
+      : page === "gridded" ? "On to the point datasets"
+      : app ? "" : `Write ${context.out}`;
+    resetButton.hidden = busy || !changed();
+  }
+
+  // the labels of the buttons, for the page shown
+  function labelButtons() {
+    if (page === "gridded") {
+      writeButton.textContent = busy ? (app ? "Starting…" : "Writing…") : "Continue";
+      cancelButton.textContent = app ? "Back" : "Cancel";
+    } else {
+      writeButton.textContent = busy ? (app ? "Starting…" : "Writing…") : writeLabel;
+      cancelButton.textContent = "Back";
+    }
+  }
+
+  function showPage(kind, focus = null) {
+    page = kind;
+    $("page-gridded").hidden = kind !== "gridded";
+    $("page-point").hidden = kind !== "point";
+    $("page-title").textContent = PAGE_TITLES[kind];
+    $("page-title").hidden = true;  // each page opens with its own heading
+    document.title = `${PAGE_TITLES[kind]} · OceanVal`;
+    labelButtons();
+    summarise();
+    window.scrollTo(0, 0);
+    if (focus) focus.focus();
+  }
+
+  function setBusy(value) {
+    busy = value;
+    cancelButton.disabled = value;
+    labelButtons();
+    summarise();
+  }
+
+  async function post(path, body) {
+    const response = await fetch(path, {
+      method: "POST",
+      cache: "no-store",
+      headers: { "Content-Type": "application/json", "X-OceanVal-Token": state.token },
+      body: JSON.stringify(body),
+    });
+    try {
+      return await response.json();
+    } catch (error) {
+      return { ok: false, error: `create_recipes sent back an unexpected reply (${response.status}).` };
+    }
+  }
+
+  function finish(kind, out) {
+    document.querySelectorAll("input, button, select").forEach((control) => { control.disabled = true; });
+    const iconBox = $("done-icon");
+    const extra = $("done-extra");
+    extra.replaceChildren();
+    let title;
+    let text;
+    if (kind === "written") {
+      iconBox.className = "done__icon";
+      iconBox.innerHTML = ICONS.check;
+      title = "Script written";
+      text = "create_recipes has finished, so you can close this tab.";
+      const command = /\s/.test(out) ? `python "${out}"` : `python ${out}`;
+      extra.append(
+        el("p", { class: "done__label", text: "Written to" }), el("code", { text: out }),
+        el("p", { class: "done__label", text: "Next, run it" }), el("code", { text: command }));
+    } else if (kind === "cancelled") {
+      iconBox.className = "done__icon is-off";
+      iconBox.innerHTML = ICONS.cross;
+      title = "Cancelled";
+      text = "Nothing was written, and create_recipes has finished. You can close this tab.";
+    } else {
+      iconBox.className = "done__icon is-warn";
+      iconBox.innerHTML = ICONS.warn;
+      title = "create_recipes has stopped";
+      text = "It is no longer waiting for this page, so nothing can be written from it. " +
+        "Run create_recipes again to start over.";
+    }
+    $("done-title").textContent = title;
+    $("done-text").textContent = text;
+    $("done").hidden = false;
+    $("done-title").focus();
+  }
+
+  // a dataset's options as they are sent: with the names of those typed in,
+  // and, to write the script, how it is matched left to the setting above
+  // while that is what it holds, so the script gives it once
+  function sentOptions(dataset, write) {
+    const opts = { ...dataset.opts, typed: Object.keys(dataset.typed).filter((name) => dataset.typed[name]) };
+    if (write && "point_time_res" in opts && !dataset.typed.point_time_res) opts.point_time_res = "";
+    return opts;
+  }
+
+  // what the window holds, to write the script with, or kept with Back for the
+  // window to be shown with again. Write is disabled while a model variable
+  // needs fixing, and an empty row has nothing ticked.
+  function choices(write = false) {
+    const years = matchupYears();
+    return {
+      // a thickness that no dataset needs is left out of the script
+      settings: {
+        ...(write && !needsThickness() ? { ...form, thickness: "" } : form),
+        // matchup's years, from the years of the datasets matched up
+        start: years ? String(years[0]) : "",
+        end: years ? String(years[1]) : "",
+      },
+      page,
+      rows: rows.map((row) => {
+        const options = { gridded: {}, point: {} };
+        for (const dataset of row.datasets) {
+          if (dataset.checked) options[dataset.kind][dataset.recipe] = sentOptions(dataset, write);
+        }
+        return {
+          variable: row.variable,
+          model_variable: row.value.trim(),
+          selected: row.datasets.filter((dataset) => dataset.checked).map((dataset) => dataset.recipe),
+          ...options,
+        };
+      }),
+      // the user's own data's options, by where it is in its list
+      own: ownChipList.reduce((own, { chip }) => {
+        own[chip.dataset.kind][chip.dataset.index] = sentOptions(chip.dataset, write);
+        return own;
+      }, { point: {}, gridded: {} }),
+    };
+  }
+
+  // told on Continue from the point datasets' page when nothing has been ticked on either page,
+  // which leaves the user there
+  function tellNothingTicked() {
+    const close = () => { overlay.remove(); writeButton.focus(); };
+    const back = el("button", { type: "button", class: "btn btn--primary", id: "nothing-return", text: "Return" });
+    back.addEventListener("click", close);
+    const overlay = el("div", { class: "picker", id: "nothing-ticked" },
+      el("div", { class: "picker__card restart__card", role: "dialog", "aria-modal": "true", "aria-labelledby": "nothing-title" },
+        el("div", { class: "restart__body" },
+          el("h2", { id: "nothing-title", text: "You have not selected any datasets" }),
+          el("p", { text: "Nothing is ticked on the gridded or the point datasets page, so there is nothing to match up. "
+            + "Return to the point data page and tick at least one dataset." })),
+        el("div", { class: "picker__foot" }, back)));
+    overlay.addEventListener("keydown", (event) => { if (event.key === "Escape") close(); });
+    document.body.append(overlay);
+    back.focus();
+  }
+
+  writeButton.addEventListener("click", async () => {
+    if (busy || writeButton.disabled) return;
+    if (page === "gridded") {
+      showPage("point");
+      return;
+    }
+    if (!tickedDatasets().length) {
+      tellNothingTicked();
+      return;
+    }
+    setBusy(true);
+    let reply;
+    try {
+      reply = await post("write", choices(true));
+    } catch (error) {
+      finish("gone");
+      return;
+    }
+    if (reply.ok) {
+      // the app shows the run
+      if (app) location.assign(home);
+      else finish("written", reply.out);
+      return;
+    }
+    setBusy(false);
+    const rowErrors = reply.errors || {};
+    const settingProblems = { ...(reply.setting_errors || {}) };
+    // matchup's years are worked out from the point datasets' and the others'
+    for (const name of ["start", "end"]) {
+      if (settingProblems[name]) settingProblems[`point_${name}`] = settingProblems[name];
+      delete settingProblems[name];
+    }
+    const optionProblems = { gridded: reply.gridded_errors || {}, point: reply.point_errors || {} };
+    const ownProblems = reply.own_errors || {};
+    if ([rowErrors, settingProblems, ...Object.values(optionProblems), ownProblems].some((errors) => Object.keys(errors).length)) {
+      // the first page with something to fix
+      let where = null;
+      for (const [kind, byIndex] of Object.entries(ownProblems)) {
+        for (const [index, problems] of Object.entries(byIndex)) {
+          const found = ownChipList.find(({ chip }) => chip.dataset.kind === kind && String(chip.dataset.index) === index);
+          if (found) found.chip.dataset.serverErrors = { ...problems };
+          if (kind === "gridded") where = "gridded";
+        }
+      }
+      Object.assign(serverErrors, settingProblems);
+      for (const [kind, byVariable] of Object.entries(optionProblems)) {
+        for (const [variable, byRecipe] of Object.entries(byVariable)) {
+          const row = rows.find((candidate) => candidate.variable === variable);
+          for (const [recipe, problems] of Object.entries(byRecipe)) {
+            const dataset = row && row.datasets.find((item) => item.kind === kind && item.recipe === recipe);
+            if (dataset) dataset.serverErrors = { ...problems };
+            if (kind === "gridded") where = "gridded";
+          }
+        }
+      }
+      let first = null;
+      for (const [variable, text] of Object.entries(rowErrors)) {
+        const row = rows.find((candidate) => candidate.variable === variable);
+        if (!row) continue;
+        Object.assign(row, { status: "invalid", message: text });
+        update(row);
+        if (!row.dom.views.some((view) => view.kind === "point")) where = "gridded";
+      }
+      const setting = Object.keys(settingProblems)[0];
+      if (setting && GROUP_PAGES[groupOf(setting)] === "gridded") where = "gridded";
+      showPage(where || "point");
+      for (const [variable] of Object.entries(rowErrors)) {
+        const row = rows.find((candidate) => candidate.variable === variable);
+        if (row && !first) first = inputOf(row);
+      }
+      first = first || (setting && field(setting));
+      if (first) first.focus();
+      toast("Some boxes need fixing before the script can be written.");
+    } else {
+      toast(reply.error || "The script could not be written.");
+    }
+  });
+
+  cancelButton.addEventListener("click", async () => {
+    if (busy) return;
+    if (page === "point") {
+      showPage("gridded");
+      return;
+    }
+    setBusy(true);
+    try {
+      await post("cancel", choices());
+    } catch (error) {
+      finish("gone");
+      return;
+    }
+    // back to the app's simulation step
+    if (app) location.assign(home);
+    else finish("cancelled");
+  });
+
+  for (const kind of KINDS) {
+    $(`clear-${kind}`).addEventListener("click", () => {
+      for (const row of rows) {
+        row.datasets.forEach((dataset) => { if (dataset.kind === kind) dataset.checked = false; });
+        update(row);
+      }
+      summarise();
+    });
+  }
+
+  resetButton.addEventListener("click", () => {
+    Object.assign(form, initialForm);
+    for (const name of Object.keys(serverErrors)) delete serverErrors[name];
+    FIELDS.forEach(setControl);
+    for (const { chip } of ownChipList) {
+      chip.dataset.opts = { ...chip.dataset.initial };
+      chip.dataset.typed = { ...chip.dataset.initialTyped };
+      chip.dataset.serverErrors = {};
+    }
+    for (const row of rows) {
+      row.datasets.forEach((dataset) => {
+        dataset.checked = dataset.ticked;
+        dataset.opts = blankOptions(dataset.kind);
+        dataset.typed = {};
+        dataset.serverErrors = {};
+      });
+      row.needsDefaults = !row.original;
+      setValue(row, row.original);
+    }
+    summarise();
+  });
+
+
+  // ---- the preferences and the info, from the buttons beside the wordmark ----
+  // in the app they are saved by the app, which keeps them for its other pages
+  OceanValGUI.mountChrome({
+    state: () => state,
+    post,
+    settingsPath: app ? "../api/settings" : "settings",
+    behind: () => [document.querySelector(".masthead"), document.querySelector("main"), document.querySelector(".bar")],
+    // only in the app, whose first page it goes back to
+    restart: app ? {
+      running: () => false,
+      go: async () => {
+        const reply = await post("../api/restart_all", {});
+        if (!reply.ok) return false;
+        location.assign(home);
+        return true;
+      },
+    } : null,
+  });
+  showPage(page);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+ "state": "complete",
+ "what": "analysis",
+ "pages": 1,
+ "expected": 1,
+ "built": [
+  "jhgjg"
+ ],
+ "building": null,
+ "building_key": null,
+ "added": {
+  "jhgjg": "/users/modellers/maz/OceanVal_fvcom/oceanval_analysis/report/_build/html/notebooks/001_jhgjg.html"
+ },
+ "failed": [],
+ "landing": "/users/modellers/maz/OceanVal_fvcom/oceanval_analysis/report/_build/html/notebooks/000_overview.html",
+ "updated": "2026-11-03T12:15:55"
+}

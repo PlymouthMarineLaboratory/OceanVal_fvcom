@@ -1,0 +1,9 @@
+format: jb-book
+root: intro
+parts:
+- caption: Overview
+  chapters:
+  - file: notebooks/000_overview.ipynb
+- caption: Variables
+  chapters:
+  - file: notebooks/001_jhgjg.ipynb

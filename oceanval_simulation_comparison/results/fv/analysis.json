@@ -1,0 +1,63 @@
+{
+  "version": 1,
+  "oceanval": "0.6.1",
+  "created": "2026-11-03T12:50:19",
+  "sim_dir": "/data/thaumus2/scratch/maz/Models/FVCOM/run/aqua_v16_trawl/output/aqua_v16_trawl/tide_wind_nest_ersem/2012_2014_val",
+  "n_dirs_down": 0,
+  "exclude": [],
+  "require": [],
+  "thickness": "z_level",
+  "time_shift": 0,
+  "as_missing": [
+    0.0,
+    0.0
+  ],
+  "subregions": null,
+  "lon_lim": null,
+  "lat_lim": null,
+  "stations": {},
+  "figure_code": false,
+  "fvcom": false,
+  "variables": [
+    {
+      "name": "Temperature",
+      "key": "temperature",
+      "model_variable": "temp",
+      "long_name": "temperature",
+      "units": "degrees_C",
+      "levels": 1,
+      "pattern": "aqua_v**_trawl_avg_**_**_**.nc",
+      "files": 13,
+      "time_res": "1d",
+      "time_res_text": "daily",
+      "climatology": {
+        "start": 2013,
+        "end": 2013,
+        "files": 13,
+        "dates": {
+          "summary": "All 12 months from 2013 to 2013 are complete",
+          "issues": [],
+          "gaps": false,
+          "first": "2013-01-01",
+          "last": "2013-12-31"
+        },
+        "layers": {
+          "surface": {
+            "title": "Surface",
+            "units": "degrees_C",
+            "monthly": "temperature_surface_monthly.nc",
+            "annual": "temperature_surface_annual.nc",
+            "months": 12
+          }
+        }
+      },
+      "phenology": null,
+      "long_term": null,
+      "seasonal": null,
+      "transects": null,
+      "map_changes": null,
+      "first": "2012-12-02",
+      "last": "2014-01-01"
+    }
+  ]
+}

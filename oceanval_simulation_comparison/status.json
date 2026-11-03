@@ -1,0 +1,17 @@
+{
+ "state": "complete",
+ "what": "comparison",
+ "pages": 1,
+ "expected": 1,
+ "built": [
+  "Temperature"
+ ],
+ "building": null,
+ "building_key": null,
+ "added": {
+  "temperature": "/users/modellers/maz/OceanVal_fvcom/oceanval_simulation_comparison/report/_build/html/notebooks/001_temperature.html"
+ },
+ "failed": [],
+ "landing": "/users/modellers/maz/OceanVal_fvcom/oceanval_simulation_comparison/report/_build/html/notebooks/000_overview.html",
+ "updated": "2026-11-03T12:51:44"
+}
